@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Estoque e Vendas</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#172b4d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--primary:#1769e0;--danger:#d92d20;--ok:#039855;--border:#e4e7ec}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);min-width:320px;overflow-x:hidden}
+header{background:#172b4d;color:#fff;padding:18px 20px;position:sticky;top:0;z-index:20}
+header h1{margin:0;font-size:22px;line-height:1.25}
+header p{margin:5px 0 0;color:#d9e2f2;font-size:13px;line-height:1.4}
+nav{display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;background:#fff;padding:10px;border-bottom:1px solid var(--border);position:sticky;top:72px;z-index:19;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+nav button{flex:0 0 auto;border:0;background:#eef2f7;padding:10px 13px;border-radius:9px;white-space:nowrap;cursor:pointer;min-height:40px}
+nav button.active{background:var(--primary);color:#fff}
+main{width:100%;max-width:1200px;margin:auto;padding:18px}
+section{display:none}section.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:0 2px 8px #1018280a}
+.metric{font-size:27px;font-weight:700;margin-top:8px;word-break:break-word}
+.muted{color:var(--muted);font-size:13px}
+form{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+label{font-size:13px;font-weight:600;display:block;margin-bottom:5px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #cfd4dc;border-radius:8px;font-size:16px;background:#fff;min-height:42px}
+button{font-family:inherit}
+button.primary{background:var(--primary);color:#fff;border:0;padding:11px 15px;border-radius:8px;cursor:pointer;font-weight:600;min-height:42px}
+button.secondary{background:#eef2f7;color:#172033;border:0;padding:9px 12px;border-radius:8px;cursor:pointer;min-height:40px}
+button.danger{background:#fee4e2;color:#b42318;border:0;padding:8px 10px;border-radius:8px;cursor:pointer;min-height:40px}
+button.small{padding:7px 9px;font-size:12px;min-height:36px}
+table{width:100%;min-width:650px;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}
+th,td{padding:10px;border-bottom:1px solid var(--border);text-align:left;font-size:13px;vertical-align:middle}
+th{background:#f8fafc}
+.scroll{width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;border-radius:12px}
+.profit{color:var(--ok);font-weight:700}.loss{color:var(--danger);font-weight:700}
+.alert{padding:11px;border-radius:9px;background:#fff4e5;color:#9a6700;margin-bottom:12px}
+.success{padding:11px;border-radius:9px;background:#ecfdf3;color:#027a48;margin-bottom:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+h2{margin-top:4px;line-height:1.25}.total{font-size:20px;font-weight:700;margin:12px 0}
+.badge{padding:4px 8px;border-radius:999px;background:#eef2f7;font-size:11px}
+.report-total{margin-top:14px;padding:14px;border-radius:12px;background:#eef5ff;border:1px solid #d5e5ff}
+.report-total .metric{margin-top:4px;color:var(--primary)}
+@media(max-width:600px){
+  header{padding:13px 12px}header h1{font-size:18px}header p{font-size:12px}
+  nav{top:63px;padding:8px}nav button{padding:9px 11px;font-size:13px}
+  main{padding:10px}h2{font-size:20px}
+  .grid{grid-template-columns:1fr 1fr;gap:9px}
+  .card,form{padding:12px;border-radius:12px}
+  .fields{grid-template-columns:1fr;gap:10px}
+  .metric{font-size:20px}
+  .actions{flex-direction:column}.actions button{width:100%}
+  .total{font-size:18px}table{min-width:650px}th,td{font-size:12px;padding:8px}
+}
+@media(max-width:380px){.grid{grid-template-columns:1fr}.metric{font-size:22px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>📦 Controle de Estoque e Vendas</h1>
+  <p>Cadastro de produtos • estoque automático • vendas • lucro por produto</p>
+</header>
+
+<nav id="nav">
+  <button class="active" data-tab="dashboard">🏠 Início</button>
+  <button data-tab="products">📦 Produtos</button>
+  <button data-tab="stock">📊 Estoque</button>
+  <button data-tab="sales">🛒 Vendas</button>
+  <button data-tab="reports">📈 Relatórios</button>
+  <button data-tab="backup">⚙️ Dados</button>
+</nav>
+
+<main>
+<section id="dashboard" class="active">
+<h2>Resumo</h2>
+<div id="lowStockBox"></div>
+<div class="grid">
+  <div class="card"><div class="muted">Vendas hoje</div><div class="metric" id="mToday">R$ 0,00</div></div>
+  <div class="card"><div class="muted">Lucro bruto hoje</div><div class="metric profit" id="mProfitToday">R$ 0,00</div></div>
+  <div class="card"><div class="muted">Vendas no mês</div><div class="metric" id="mMonth">R$ 0,00</div></div>
+  <div class="card"><div class="muted">Lucro bruto no mês</div><div class="metric profit" id="mProfitMonth">R$ 0,00</div></div>
+  <div class="card"><div class="muted">Produtos cadastrados</div><div class="metric" id="mProducts">0</div></div>
+  <div class="card"><div class="muted">Valor do estoque</div><div class="metric" id="mStock">R$ 0,00</div></div>
+</div>
+</section>
+
+<section id="products">
+<h2>Cadastro de produtos</h2>
+<form id="productForm">
+<input type="hidden" id="editId">
+<div class="fields">
+<div><label>Nome do produto *</label><input id="pName" required></div>
+<div><label>Código / SKU</label><input id="pSku"></div>
+<div><label>Categoria</label><input id="pCat"></div>
+<div><label>Preço de custo (R$) *</label><input id="pCost" type="number" min="0" step="0.01" required></div>
+<div><label>Preço de venda (R$) *</label><input id="pPrice" type="number" min="0" step="0.01" required></div>
+<div><label>Estoque inicial</label><input id="pStock" type="number" min="0" step="0.01" value="0"></div>
+<div><label>Estoque mínimo</label><input id="pMin" type="number" min="0" step="0.01" value="0"></div>
+</div>
+<div class="actions"><button class="primary" type="submit">Salvar produto</button><button class="secondary" type="button" onclick="clearProductForm()">Limpar</button></div>
+</form>
+<div class="card">
+<div class="fields"><div><label>Pesquisar</label><input id="productSearch" oninput="renderProducts()" placeholder="Nome, SKU ou categoria"></div></div>
+</div>
+<br>
+<div class="scroll"><table><thead><tr><th>Produto</th><th>SKU</th><th>Custo</th><th>Venda</th><th>Margem</th><th>Estoque</th><th>Ações</th></tr></thead><tbody id="productsBody"></tbody></table></div>
+</section>
+
+<section id="stock">
+<h2>Entrada / ajuste de estoque</h2>
+<form id="stockForm">
+<div class="fields">
+<div><label>Produto *</label><select id="sProduct" required></select></div>
+<div><label>Tipo</label><select id="sType"><option value="entrada">Entrada</option><option value="saida">Saída/Ajuste</option></select></div>
+<div><label>Quantidade *</label><input id="sQty" type="number" min="0.01" step="0.01" required></div>
+<div><label>Observação</label><input id="sNote" placeholder="Compra, perda, ajuste..."></div>
+</div>
+<div class="actions"><button class="primary">Registrar movimentação</button></div>
+</form>
+<div class="card"><h3>Estoque atual</h3><div class="scroll"><table><thead><tr><th>Produto</th><th>Estoque</th><th>Mínimo</th><th>Status</th><th>Valor a custo</th></tr></thead><tbody id="stockBody"></tbody></table></div></div>
+</section>
+
+<section id="sales">
+<h2>Nova venda</h2>
+<form id="saleForm">
+<div class="fields">
+<div><label>Produto *</label><select id="saleProduct" required onchange="updateSalePrice()"></select></div>
+<div><label>Quantidade *</label><input id="saleQty" type="number" min="0.01" step="0.01" value="1" required oninput="updateSalePrice()"></div>
+<div><label>Preço unitário (R$)</label><input id="salePrice" type="number" min="0" step="0.01" required></div>
+<div><label>Desconto (R$)</label><input id="saleDiscount" type="number" min="0" step="0.01" value="0" oninput="updateSalePrice()"></div>
+<div><label>Forma de pagamento</label><select id="salePayment"><option>Pix</option><option>Dinheiro</option><option>Débito</option><option>Crédito</option><option>Transferência</option><option>Outro</option></select></div>
+<div><label>Cliente</label><input id="saleCustomer" placeholder="Opcional"></div>
+</div>
+<div class="total" id="saleTotal">Total: R$ 0,00</div>
+<div class="muted" id="saleProfit">Lucro bruto estimado: R$ 0,00</div>
+<div class="actions"><button class="primary">Registrar venda e dar baixa no estoque</button></div>
+</form>
+<div class="card"><h3>Últimas vendas</h3><div class="scroll"><table><thead><tr><th>Data</th><th>Produto</th><th>Qtd.</th><th>Total</th><th>Lucro bruto</th><th>Pagamento</th></tr></thead><tbody id="salesBody"></tbody></table></div></div>
+</section>
+
+<section id="reports">
+<h2>Relatórios</h2>
+<div class="card">
+<div class="fields">
+<div><label>Período inicial</label><input type="date" id="rStart"></div>
+<div><label>Período final</label><input type="date" id="rEnd"></div>
+</div>
+<div class="actions"><button class="primary" onclick="renderReports()">Atualizar relatório</button></div>
+</div>
+<br>
+<div class="grid">
+<div class="card"><div class="muted">Faturamento</div><div class="metric" id="rRevenue">R$ 0,00</div></div>
+<div class="card"><div class="muted">Custo dos produtos vendidos</div><div class="metric" id="rCost">R$ 0,00</div></div>
+<div class="card"><div class="muted">Lucro bruto</div><div class="metric profit" id="rProfit">R$ 0,00</div></div>
+<div class="card"><div class="muted">Margem bruta</div><div class="metric" id="rMargin">0%</div></div>
+ <div class="card"><div class="muted">Soma total dos produtos em estoque (preço de venda)</div><div class="metric" id="rProductsTotal">R$ 0,00</div></div>
+</div>
+<br>
+<div class="card"><h3>Vendas por produto</h3><div class="scroll"><table><thead><tr><th>Produto</th><th>Qtd. vendida</th><th>Faturamento</th><th>Custo</th><th>Lucro bruto</th><th>Margem</th></tr></thead><tbody id="reportProducts"></tbody><tfoot id="reportTotal"></tfoot></table></div></div>
+</section>
+
+<section id="backup">
+<h2>Dados e segurança</h2>
+<div class="card">
+<p>Os dados desta primeira versão ficam salvos <strong>neste navegador/dispositivo</strong>. Faça backups regularmente.</p>
+<div class="actions">
+<button class="primary" onclick="exportData()">⬇️ Fazer backup</button>
+<button class="secondary" onclick="document.getElementById('importFile').click()">⬆️ Restaurar backup</button>
+<input type="file" id="importFile" accept=".json" hidden onchange="importData(event)">
+<button class="danger" onclick="resetData()">Apagar todos os dados</button>
+</div>
+</div>
+</section>
+</main>
+
+<script>
+const KEY='estoque_vendas_v1';
+let db=JSON.parse(localStorage.getItem(KEY)||'{"products":[],"sales":[],"movements":[]}');
+const brl=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n)||0);
+const num=id=>Number(document.getElementById(id).value)||0;
+const save=()=>localStorage.setItem(KEY,JSON.stringify(db));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const todayStr=()=>new Date().toISOString().slice(0,10);
+const monthStr=()=>todayStr().slice(0,7);
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));document.getElementById(b.dataset.tab).classList.add('active');renderAll();});
+
+function productById(id){return db.products.find(p=>p.id===id)}
+function compareProducts(a,b){return String(a.name||'').localeCompare(String(b.name||''),'pt-BR',{sensitivity:'base',numeric:true});}
+function sortedProducts(){return [...db.products].sort(compareProducts);}
+function renderAll(){renderDashboard();renderProducts();fillSelects();renderStock();renderSales();renderReports();}
+function renderDashboard(){
+ const today=todayStr(), month=monthStr();
+ const st=db.sales.filter(s=>s.date.slice(0,10)===today), sm=db.sales.filter(s=>s.date.slice(0,7)===month);
+ const sum=a=>a.reduce((x,s)=>x+s.total,0), prof=a=>a.reduce((x,s)=>x+s.profit,0);
+ document.getElementById('mToday').textContent=brl(sum(st));document.getElementById('mProfitToday').textContent=brl(prof(st));
+ document.getElementById('mMonth').textContent=brl(sum(sm));document.getElementById('mProfitMonth').textContent=brl(prof(sm));
+ document.getElementById('mProducts').textContent=db.products.length;
+ document.getElementById('mStock').textContent=brl(db.products.reduce((x,p)=>x+p.stock*p.cost,0));
+ const low=sortedProducts().filter(p=>p.stock<=p.min && p.min>0);
+ document.getElementById('lowStockBox').innerHTML=low.length?`<div class="alert">⚠️ <strong>Estoque baixo:</strong> ${low.map(p=>esc(p.name)+' ('+p.stock+')').join(', ')}</div>`:'';
+}
+function clearProductForm(){document.getElementById('productForm').reset();document.getElementById('editId').value='';document.getElementById('pStock').value=0;document.getElementById('pMin').value=0}
+document.getElementById('productForm').onsubmit=e=>{
+ e.preventDefault();const id=document.getElementById('editId').value;
+ const data={name:pName.value.trim(),sku:pSku.value.trim(),cat:pCat.value.trim(),cost:num('pCost'),price:num('pPrice'),stock:num('pStock'),min:num('pMin')};
+ if(!data.name)return;
+ if(id){const p=productById(id);const old=p.stock;p.name=data.name;p.sku=data.sku;p.cat=data.cat;p.cost=data.cost;p.price=data.price;p.min=data.min;p.stock=data.stock;if(old!==data.stock)db.movements.push({id:uid(),date:new Date().toISOString(),productId:id,type:'ajuste',qty:data.stock-old,note:'Edição do cadastro'});}
+ else {data.id=uid();db.products.push(data);if(data.stock)db.movements.push({id:uid(),date:new Date().toISOString(),productId:data.id,type:'entrada',qty:data.stock,note:'Estoque inicial'});}
+ save();clearProductForm();renderAll();alert('Produto salvo com sucesso!');
+};
+function renderProducts(){
+ const q=(document.getElementById('productSearch')?.value||'').toLowerCase();
+ const rows=sortedProducts().filter(p=>(p.name+' '+p.sku+' '+p.cat).toLowerCase().includes(q)).map(p=>{
+ const margin=p.price?((p.price-p.cost)/p.price*100):0;
+ return `<tr><td><strong>${esc(p.name)}</strong><br><span class="muted">${esc(p.cat)}</span></td><td>${esc(p.sku)}</td><td>${brl(p.cost)}</td><td>${brl(p.price)}</td><td>${margin.toFixed(1)}%</td><td>${p.stock}</td><td><button class="secondary small" onclick="editProduct('${p.id}')">Editar</button> <button class="danger small" onclick="deleteProduct('${p.id}')">Excluir</button></td></tr>`;
+ }).join('');
+ document.getElementById('productsBody').innerHTML=rows||'<tr><td colspan="7">Nenhum produto cadastrado.</td></tr>';
+}
+function editProduct(id){const p=productById(id);document.getElementById('editId').value=p.id;pName.value=p.name;pSku.value=p.sku;pCat.value=p.cat;pCost.value=p.cost;pPrice.value=p.price;pStock.value=p.stock;pMin.value=p.min;document.querySelector('[data-tab="products"]').click();scrollTo({top:0,behavior:'smooth'});}
+function deleteProduct(id){if(db.sales.some(s=>s.productId===id)){alert('Este produto possui vendas registradas e não pode ser excluído. Você pode editá-lo e deixar o estoque zerado.');return}if(confirm('Excluir este produto?')){db.products=db.products.filter(p=>p.id!==id);save();renderAll();}}
+function fillSelects(){
+ const opts=sortedProducts().map(p=>`<option value="${p.id}">${esc(p.name)} — estoque: ${p.stock}</option>`).join('');
+ document.getElementById('sProduct').innerHTML='<option value="">Selecione...</option>'+opts;
+ const current=saleProduct.value;document.getElementById('saleProduct').innerHTML='<option value="">Selecione...</option>'+opts;if(current) saleProduct.value=current;
+  if(saleProduct.value) updateSalePrice();
+}
+document.getElementById('stockForm').onsubmit=e=>{
+ e.preventDefault();const p=productById(sProduct.value),q=num('sQty');if(!p||q<=0)return;
+ if(sType.value==='saida'&&p.stock<q){alert('Estoque insuficiente.');return}
+ p.stock += sType.value==='entrada'?q:-q;
+ db.movements.push({id:uid(),date:new Date().toISOString(),productId:p.id,type:sType.value,qty:q,note:sNote.value});
+ save();e.target.reset();renderAll();alert('Movimentação registrada.');
+};
+function renderStock(){document.getElementById('stockBody').innerHTML=sortedProducts().map(p=>`<tr><td>${esc(p.name)}</td><td>${p.stock}</td><td>${p.min}</td><td>${p.min>0&&p.stock<=p.min?'<span class="loss">Baixo</span>':'<span class="profit">Normal</span>'}</td><td>${brl(p.stock*p.cost)}</td></tr>`).join('')||'<tr><td colspan="5">Nenhum produto.</td></tr>';}
+function updateSalePrice(){const p=productById(saleProduct.value);if(!p){saleTotal.textContent='Total: R$ 0,00';saleProfit.textContent='Lucro bruto estimado: R$ 0,00';return}if(!salePrice.value||salePrice.dataset.auto==='1'){salePrice.value=p.price;salePrice.dataset.auto='1'}const q=num('saleQty'),d=num('saleDiscount'),price=num('salePrice'),total=Math.max(0,q*price-d),profit=total-q*p.cost;saleTotal.textContent='Total: '+brl(total);saleProfit.textContent='Lucro bruto estimado: '+brl(profit);}
+salePrice.addEventListener('input',()=>salePrice.dataset.auto='0');
+document.getElementById('saleForm').onsubmit=e=>{
+ e.preventDefault();const p=productById(saleProduct.value),q=num('saleQty'),price=num('salePrice'),disc=num('saleDiscount');if(!p||q<=0)return;if(p.stock<q){alert(`Estoque insuficiente. Disponível: ${p.stock}`);return}
+ const total=Math.max(0,q*price-disc),cost=q*p.cost,profit=total-cost;
+ p.stock-=q;
+ db.sales.unshift({id:uid(),date:new Date().toISOString(),productId:p.id,productName:p.name,qty:q,unitPrice:price,discount:disc,total,cost,profit,payment:salePayment.value,customer:saleCustomer.value});
+ db.movements.push({id:uid(),date:new Date().toISOString(),productId:p.id,type:'venda',qty:q,note:'Venda'});
+ save();e.target.reset();salePrice.dataset.auto='1';saleQty.value=1;renderAll();alert(`Venda registrada!\\nTotal: ${brl(total)}\\nLucro bruto: ${brl(profit)}`);
+};
+function renderSales(){document.getElementById('salesBody').innerHTML=db.sales.slice(0,30).map(s=>`<tr><td>${new Date(s.date).toLocaleString('pt-BR')}</td><td>${esc(s.productName)}</td><td>${s.qty}</td><td>${brl(s.total)}</td><td class="${s.profit>=0?'profit':'loss'}">${brl(s.profit)}</td><td>${esc(s.payment)}</td></tr>`).join('')||'<tr><td colspan="6">Nenhuma venda registrada.</td></tr>';}
+function renderReports(){
+  const start=document.getElementById('rStart').value||'1900-01-01',end=document.getElementById('rEnd').value||'2999-12-31';
+  const sales=db.sales.filter(s=>s.date.slice(0,10)>=start&&s.date.slice(0,10)<=end);
+  const revenue=sales.reduce((a,s)=>a+s.total,0),cost=sales.reduce((a,s)=>a+s.cost,0),profit=sales.reduce((a,s)=>a+s.profit,0);
+  const productsTotal=sortedProducts().reduce((a,p)=>a+(Number(p.stock)||0)*(Number(p.price)||0),0);
+  rRevenue.textContent=brl(revenue);
+  rCost.textContent=brl(cost);
+  rProfit.textContent=brl(profit);
+  rMargin.textContent=(revenue?profit/revenue*100:0).toFixed(1)+'%';
+  rProductsTotal.textContent=brl(productsTotal);
+  const map={};
+  sales.forEach(s=>{
+    if(!map[s.productId])map[s.productId]={name:s.productName,qty:0,revenue:0,cost:0,profit:0};
+    const x=map[s.productId];
+    x.qty+=s.qty;x.revenue+=s.total;x.cost+=s.cost;x.profit+=s.profit;
+  });
+  const reportRows=Object.values(map)
+    .sort((a,b)=>a.name.localeCompare(b.name,'pt-BR',{sensitivity:'base',numeric:true}));
+  reportProducts.innerHTML=reportRows.length?reportRows.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${brl(x.revenue)}</td><td>${brl(x.cost)}</td><td class="${x.profit>=0?'profit':'loss'}">${brl(x.profit)}</td><td>${x.revenue?(x.profit/x.revenue*100).toFixed(1):0}%</td></tr>`).join(''):'<tr><td colspan="6">Nenhuma venda no período.</td></tr>';
+  const totalQty=reportRows.reduce((a,x)=>a+x.qty,0);
+  reportTotal.innerHTML=`<tr><th>TOTAL</th><th>${totalQty}</th><th>${brl(revenue)}</th><th>${brl(cost)}</th><th class="${profit>=0?'profit':'loss'}">${brl(profit)}</th><th>${revenue?(profit/revenue*100).toFixed(1):0}%</th></tr>`;
+}
+function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='backup-estoque-vendas-'+todayStr()+'.json';a.click();URL.revokeObjectURL(a.href);}
+function importData(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.products||!x.sales||!x.movements)throw 0;if(confirm('Restaurar este backup? Os dados atuais serão substituídos.')){db=x;save();renderAll();alert('Backup restaurado.')}}catch(e){alert('Arquivo de backup inválido.')}};r.readAsText(f);}
+function resetData(){if(confirm('ATENÇÃO: isso apagará produtos, vendas e movimentações deste dispositivo. Continuar?')){db={products:[],sales:[],movements:[]};save();renderAll();}}
+document.getElementById('rStart').addEventListener('input',renderReports);
+document.getElementById('rEnd').addEventListener('input',renderReports);
+renderAll();
+if ('serviceWorker' in navigator) { window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+</script>
+</body>
+</html>
